@@ -38,7 +38,8 @@ public class GraphicsOperations {
         int middleX = ellipse.getMiddleX();
         int middleY = ellipse.getMiddleY();
 
-        double d1, d2, x, y;
+        double d1, d2;
+        int x, y;
         x = 0;
         y = radiusY;
 
@@ -57,10 +58,10 @@ public class GraphicsOperations {
 
             // Drawing the pixel of each x and y in the circle
             // Each line means each quadrant of the circle
-            vram.setPixel((int)(x + middleX), (int)(y +middleY), brightness);
-            vram.setPixel((int)(-x + middleX), (int)(y +middleY), brightness);
-            vram.setPixel((int)(x + middleX), (int)(-y +middleY), brightness);
-            vram.setPixel((int)(-x + middleX), (int)(-y +middleY), brightness);
+            vram.setPixel(x + middleX, y + middleY, brightness);
+            vram.setPixel(-x + middleX, y +middleY, brightness);
+            vram.setPixel(x + middleX, -y +middleY, brightness);
+            vram.setPixel(-x + middleX, -y +middleY, brightness);
 
             // Checking and updating value of
             // decision parameter based on algorithm
@@ -190,12 +191,11 @@ public class GraphicsOperations {
         int defaultBrightness = brightness;
 
         for (int y = startPoint.y; y < endPoint.y; y++) {
-            /*vram.setPixel(x + 1, y, brightness + 50);
-            vram.setPixel(x- 1, y , brightness + 20);*/
+            vram.setPixel(x, y + 1, brightness + 50);
+            vram.setPixel(x, y - 1, brightness + 50);
             vram.setPixel(x, y, brightness);
 
             if (h > 0) {
-                brightness = defaultBrightness;
                 x += d;
                 h+= h2;
             }
@@ -227,12 +227,11 @@ public class GraphicsOperations {
         int defaultBrightness = brightness;
 
         for (int x = startPoint.x; x < endPoint.x; x++) {
-            /*vram.setPixel(x + 1, y, brightness + 30);
-            vram.setPixel(x - 1, y, brightness + 30);*/
+            vram.setPixel(x + 1, y, brightness + 50);
+            vram.setPixel(x - 1, y, brightness + 50);
             vram.setPixel(x, y, brightness);
 
             if (h > 0) {
-                brightness = defaultBrightness;
                 y += d;
                 h+= h2;
             }
