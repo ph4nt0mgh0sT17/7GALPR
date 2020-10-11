@@ -26,13 +26,100 @@ public class GraphicsOperations {
         line(vram, new Line2D(triangle.pointC, triangle.pointA), brightness);
     }
 
+    public static void drawEllipse(V_RAM vram, Ellipse2D ellipse, int brightness) {
+        ellipseBresenham(vram, ellipse, brightness);
+    }
+
+    private static void ellipseBresenham(V_RAM vram, Ellipse2D ellipse, int brightness) {
+
+        int radiusX = ellipse.getRadiusX();
+        int radiusY = ellipse.getRadiusY();
+
+        int middleX = ellipse.getMiddleX();
+        int middleY = ellipse.getMiddleY();
+
+        double d1, d2, x, y;
+        x = 0;
+        y = radiusY;
+
+        double radiusXPow2 = Math.pow(radiusX, 2);
+        double radiusYPow2 = Math.pow(radiusY, 2);
+
+        d1 = radiusXPow2 +
+                (4 * radiusYPow2) -
+                (4 * radiusXPow2 * radiusY);
+
+        double decisionParameter = radiusXPow2 / (Math.sqrt(radiusXPow2 + radiusYPow2));
+
+        // For region 1
+        while (decisionParameter >= x)
+        {
+
+            // Drawing the pixel of each x and y in the circle
+            // Each line means each quadrant of the circle
+            vram.setPixel((int)(x + middleX), (int)(y +middleY), brightness);
+            vram.setPixel((int)(-x + middleX), (int)(y +middleY), brightness);
+            vram.setPixel((int)(x + middleX), (int)(-y +middleY), brightness);
+            vram.setPixel((int)(-x + middleX), (int)(-y +middleY), brightness);
+
+            // Checking and updating value of
+            // decision parameter based on algorithm
+            x++;
+
+            if (d1 <= 0)
+            {
+                d1 += 4 * radiusYPow2 * (2*x + 3);
+            }
+
+            else
+            {
+                y--;
+                d1 += (4 * radiusYPow2 * ((2 * x) + 3)) - (8 * radiusXPow2 * (y-1));
+            }
+        }
+
+        // Decision parameter of region 2
+        d2 = radiusYPow2 +
+                (4 * radiusXPow2) -
+                (4 * radiusYPow2 * radiusX);
+
+
+        // Switching axis due to 45° tilt
+        while (y >= 0) {
+
+            vram.setPixel((int)(x + middleX), (int)(y +middleY), brightness);
+            vram.setPixel((int)(-x + middleX), (int)(y +middleY), brightness);
+            vram.setPixel((int)(x + middleX), (int)(-y +middleY), brightness);
+            vram.setPixel((int)(-x + middleX), (int)(-y +middleY), brightness);
+
+            // Checking and updating parameter
+            // value based on algorithm
+            y--;
+            if (d2 <= 0)
+            {
+                d2 += 4 * radiusXPow2 * (2*y + 3);
+            }
+
+            else
+            {
+                x++;
+                d2 += (4 * radiusXPow2 * ((2 * y) + 3)) - (8 * radiusYPow2 * (x-1));
+            }
+        }
+    }
+
     private static void line(V_RAM vram, Line2D line, int brightness) {
 
         Point startPoint = line.pointA.getRoundedPoint();
         Point endPoint = line.pointB.getRoundedPoint();
 
-        // Line delta
         LineDelta lineDelta = LineDelta.createLineDelta(startPoint, endPoint);
+
+        if (isOnlyPixel(startPoint, endPoint)) {
+            vram.setPixel(startPoint.x,startPoint.y,brightness);
+
+            return;
+        }
 
         if (isVerticalLine(startPoint, endPoint)) {
             if (isAxisYSwitched(startPoint, endPoint)) {
@@ -50,12 +137,6 @@ public class GraphicsOperations {
             }
 
             drawHorizontalLine(vram, startPoint, endPoint, brightness);
-
-            return;
-        }
-
-        if (isOnlyPixel(startPoint, endPoint)) {
-            vram.setPixel(startPoint.x,startPoint.y,brightness);
 
             return;
         }
@@ -106,9 +187,15 @@ public class GraphicsOperations {
 
         int x = startPoint.x;
 
+        int defaultBrightness = brightness;
+
         for (int y = startPoint.y; y < endPoint.y; y++) {
+            /*vram.setPixel(x + 1, y, brightness + 50);
+            vram.setPixel(x- 1, y , brightness + 20);*/
             vram.setPixel(x, y, brightness);
+
             if (h > 0) {
+                brightness = defaultBrightness;
                 x += d;
                 h+= h2;
             }
@@ -133,14 +220,19 @@ public class GraphicsOperations {
         int h1 = 2 * Math.abs(lineDelta.getDeltaY());
         int h2 = h1 - 2 * (lineDelta.getDeltaX());
 
-        int h = h1 - lineDelta.getDeltaX(); // h0
+        int h = h1 - lineDelta.getDeltaX();
 
         int y = startPoint.y;
 
+        int defaultBrightness = brightness;
+
         for (int x = startPoint.x; x < endPoint.x; x++) {
+            /*vram.setPixel(x + 1, y, brightness + 30);
+            vram.setPixel(x - 1, y, brightness + 30);*/
             vram.setPixel(x, y, brightness);
 
             if (h > 0) {
+                brightness = defaultBrightness;
                 y += d;
                 h+= h2;
             }
@@ -200,8 +292,6 @@ public class GraphicsOperations {
      * @param brightness The brightness (0 - 255) of a pixel.
      */
     private static void naiveLineHigh(Point startPoint, Point endPoint, V_RAM vram, int brightness) {
-        System.out.println("The line for high tilt");
-
         LineDelta lineDelta = LineDelta.createLineDelta(startPoint,endPoint);
 
         float a = (float)lineDelta.getDeltaX() / lineDelta.getDeltaY();
@@ -209,7 +299,7 @@ public class GraphicsOperations {
         int x;
 
 
-        for (int y = startPoint.y;  y < endPoint.y; y++) {
+        for (int y = startPoint.y;  y <= endPoint.y; y++) {
             x = Math.round(a * y + b);
             vram.setPixel(x,y,brightness);
         }
@@ -238,7 +328,7 @@ public class GraphicsOperations {
         float b = startPoint.y - (a * startPoint.x); // startY - (slope of a line * startX)
         int y;
 
-        for (int x = startPoint.x;  x < endPoint.x; x++) {
+        for (int x = startPoint.x;  x <= endPoint.x; x++) {
             y = Math.round(a * x + b);
             vram.setPixel(x,y,brightness);
         }

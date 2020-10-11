@@ -7,6 +7,8 @@ import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
 
 public class MainWindow extends JPanel{
 
@@ -17,9 +19,9 @@ public class MainWindow extends JPanel{
 
     private final Triangle2D t1;
     private final Triangle2D t2;
-    private final Line2D l1;
 
-    public MainWindow(){
+
+    public MainWindow() {
 
         initialize();
         
@@ -30,14 +32,17 @@ public class MainWindow extends JPanel{
         t1 = new Triangle2D(new Point2D(20, 20), new Point2D(50, 20), new Point2D(20, 50));
         t2 = t1.clone();
 
-        l1 = new Line2D(new Point2D(10,50), new Point2D(65,55));
+
 
         refresh();
+        GraphicsOperations.drawEllipse(vram,new Ellipse2D(40,40,50,50),60);
+        imagePanel.setImage(vram.getImage());
     }
+
+
 
     private void refresh() {
         GraphicsOperations.fillBrightness(vram, 255);
-        GraphicsOperations.drawLine(vram,l1,60);
         imagePanel.setImage(vram.getImage());
     }
 
@@ -128,7 +133,7 @@ public class MainWindow extends JPanel{
 
                     if (key == KeyEvent.VK_DOWN) t2.applyMatrix(Matrix2D.createTranslationMatrix(0, 1));*/
 
-                    if (key == KeyEvent.VK_RIGHT) {
+                    /*if (key == KeyEvent.VK_RIGHT) {
                         l1.pointB.Values[0]++;
                         refresh();
                     }
@@ -146,7 +151,7 @@ public class MainWindow extends JPanel{
                     if (key == KeyEvent.VK_UP) {
                         l1.pointB.Values[1]--;
                         refresh();
-                    }
+                    }*/
                 }
 
                 if(infoLabel.getText().equals("Rotation")){
@@ -231,8 +236,25 @@ public class MainWindow extends JPanel{
         }
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
 
         new MainWindow();
+    }
+
+    public void drawLine(Line2D lineToBeWritten) throws InterruptedException {
+        GraphicsOperations.drawLine(vram,lineToBeWritten,60);
+        Thread.sleep(100);
+        imagePanel.setImage(vram.getImage());
+    }
+
+    public void drawLines(Collection<Line2D> linesToBeDrawn) throws InterruptedException {
+        for (Line2D line2D : linesToBeDrawn) {
+            drawLine(line2D);
+        }
+    }
+
+    public void drawPixel(int x, int y) {
+        vram.setPixel(x,y,60);
+        imagePanel.setImage(vram.getImage());
     }
 }
