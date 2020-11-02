@@ -2,6 +2,7 @@ package cz.osu.raster.graphics;
 
 import javax.sound.sampled.Line;
 import java.awt.*;
+import java.awt.image.BufferedImage;
 
 public class GraphicsOperations {
 
@@ -15,15 +16,28 @@ public class GraphicsOperations {
     }
 
     public static void drawLine(V_RAM vram, Line2D line, int brightness){
-
         line(vram, line, brightness);
     }
 
-    public static void drawTriangle(V_RAM vram, Triangle2D triangle, int brightness){
+    public static void drawLine3D(V_RAM vram, Line3D line, int brightness) {
+        Point2D pointA = new Point2D(line.pointA.vector[0], line.pointA.vector[1]);
+        Point2D pointB = new Point2D(line.pointB.vector[0], line.pointB.vector[1]);
 
+        Line2D convertedLine = new Line2D(pointA, pointB);
+
+        line(vram, convertedLine, brightness);
+    }
+
+    public static void drawTriangle(V_RAM vram, Triangle2D triangle, int brightness){
         line(vram, new Line2D(triangle.pointA, triangle.pointB), brightness);
         line(vram, new Line2D(triangle.pointB, triangle.pointC), brightness);
         line(vram, new Line2D(triangle.pointC, triangle.pointA), brightness);
+    }
+
+    public static void drawTriangle3D(V_RAM vram, Triangle3D triangle, int brightness){
+        drawLine3D(vram, new Line3D(triangle.pointA, triangle.pointB), brightness);
+        drawLine3D(vram, new Line3D(triangle.pointB, triangle.pointC), brightness);
+        drawLine3D(vram, new Line3D(triangle.pointC, triangle.pointA), brightness);
     }
 
     public static void drawEllipse(V_RAM vram, Ellipse2D ellipse, int brightness) {
@@ -55,16 +69,8 @@ public class GraphicsOperations {
         // For region 1
         while (decisionParameter >= x)
         {
+            projectEllipsePixel(vram, x, y, middleX, middleY, brightness);
 
-            // Drawing the pixel of each x and y in the circle
-            // Each line means each quadrant of the circle
-            vram.setPixel(x + middleX, y + middleY, brightness);
-            vram.setPixel(-x + middleX, y +middleY, brightness);
-            vram.setPixel(x + middleX, -y +middleY, brightness);
-            vram.setPixel(-x + middleX, -y +middleY, brightness);
-
-            // Checking and updating value of
-            // decision parameter based on algorithm
             x++;
 
             if (d1 <= 0)
@@ -87,14 +93,8 @@ public class GraphicsOperations {
 
         // Switching axis due to 45° tilt
         while (y >= 0) {
+            projectEllipsePixel(vram, x, y, middleX, middleY, brightness);
 
-            vram.setPixel((int)(x + middleX), (int)(y +middleY), brightness);
-            vram.setPixel((int)(-x + middleX), (int)(y +middleY), brightness);
-            vram.setPixel((int)(x + middleX), (int)(-y +middleY), brightness);
-            vram.setPixel((int)(-x + middleX), (int)(-y +middleY), brightness);
-
-            // Checking and updating parameter
-            // value based on algorithm
             y--;
             if (d2 <= 0)
             {
@@ -107,6 +107,22 @@ public class GraphicsOperations {
                 d2 += (4 * radiusXPow2 * ((2 * y) + 3)) - (8 * radiusYPow2 * (x-1));
             }
         }
+    }
+
+    /**
+     * Projects the pixel from the ellipse to each quadrant.
+     * @param vram The {@link V_RAM} object that puts pixels in the {@link BufferedImage}.
+     * @param x The value of X axis.
+     * @param y The value of Y axis.
+     * @param middleX The value where should be the middle of ellipse on X axis.
+     * @param middleY The value where should be the middle of ellipse on Y axis.
+     * @param brightness The brightness of the pixel.
+     */
+    private static void projectEllipsePixel(V_RAM vram, int x, int y, int middleX, int middleY, int brightness) {
+        vram.setPixel(x + middleX, y + middleY, brightness);
+        vram.setPixel(-x + middleX, y +middleY, brightness);
+        vram.setPixel(x + middleX, -y +middleY, brightness);
+        vram.setPixel(-x + middleX, -y +middleY, brightness);
     }
 
     private static void line(V_RAM vram, Line2D line, int brightness) {
@@ -151,9 +167,6 @@ public class GraphicsOperations {
                 switchPoints(startPoint,endPoint);
             }
 
-
-            //naiveLineLow(startPoint, endPoint, vram, brightness);
-            //ddaLow(startPoint, endPoint, vram, brightness);
             bresenhamLow(startPoint, endPoint, vram, brightness);
         }
 
@@ -166,11 +179,13 @@ public class GraphicsOperations {
                 switchPoints(startPoint,endPoint);
             }
 
-            //naiveLineHigh(startPoint, endPoint, vram, brightness);
-            //ddaHigh(startPoint, endPoint, vram, brightness);
             bresenhamHigh(startPoint, endPoint, vram, brightness);
         }
     }
+
+
+
+    //<editor-fold desc="Bresenham">
 
     private static void bresenhamHigh(Point startPoint, Point endPoint, V_RAM vram, int brightness) {
 
@@ -188,11 +203,7 @@ public class GraphicsOperations {
 
         int x = startPoint.x;
 
-        int defaultBrightness = brightness;
-
-        for (int y = startPoint.y; y < endPoint.y; y++) {
-            vram.setPixel(x, y + 1, brightness + 50);
-            vram.setPixel(x, y - 1, brightness + 50);
+        for (int y = startPoint.y; y <= endPoint.y; y++) {
             vram.setPixel(x, y, brightness);
 
             if (h > 0) {
@@ -204,8 +215,6 @@ public class GraphicsOperations {
                 h +=h1;
             }
         }
-
-        vram.setPixel(endPoint.x, endPoint.y, brightness);
     }
 
     private static void bresenhamLow(Point startPoint, Point endPoint, V_RAM vram, int brightness) {
@@ -224,26 +233,23 @@ public class GraphicsOperations {
 
         int y = startPoint.y;
 
-        int defaultBrightness = brightness;
-
-        for (int x = startPoint.x; x < endPoint.x; x++) {
-            vram.setPixel(x + 1, y, brightness + 50);
-            vram.setPixel(x - 1, y, brightness + 50);
+        for (int x = startPoint.x; x <= endPoint.x; x++) {
             vram.setPixel(x, y, brightness);
 
             if (h > 0) {
                 y += d;
-                h+= h2;
+                h += h2;
             }
 
             else {
                 h +=h1;
             }
         }
-
-        vram.setPixel(endPoint.x, endPoint.y, brightness);
-
     }
+
+    //</editor-fold>
+
+    //<editor-fold desc="Old line algorithms">
 
     /**
      *
@@ -332,6 +338,7 @@ public class GraphicsOperations {
             vram.setPixel(x,y,brightness);
         }
     }
+    //</editor-fold>
 
     /**
      * Draws the vertical line from startPoint to the endPoint.
@@ -422,7 +429,6 @@ public class GraphicsOperations {
      * Checks if the line is only 1 pixel.
      * @param start The start point of the line.
      * @param end The end of the line.
-     * @return
      */
     private static boolean isOnlyPixel(Point start, Point end) {
         return start.x == end.x && start.y == end.y;

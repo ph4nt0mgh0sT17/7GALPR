@@ -35,6 +35,10 @@ public class V_RAM {
 
         brightness = Math.min(255, Math.max(0, brightness));
 
+        if (x < 0 || x >= width || y < 0 || y >= height) {
+            return;
+        }
+
         rawData[y][x] = brightness;
     }
 
@@ -49,8 +53,8 @@ public class V_RAM {
         int counter = 0;
         int value;
 
-        for(int y = 0; y < height; y++){
-            for(int x = 0; x < width; x++){
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
 
                 value = rawData[y][x];
 

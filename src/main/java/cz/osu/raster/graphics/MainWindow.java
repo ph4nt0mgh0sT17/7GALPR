@@ -7,9 +7,7 @@ import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
+import java.util.*;
 import java.util.List;
 
 public class MainWindow extends JPanel{
@@ -19,25 +17,107 @@ public class MainWindow extends JPanel{
 
     private V_RAM vram;
 
-    private final Triangle2D t1;
-    private final Triangle2D t2;
+    Matrix3D k;
+    Matrix3D q;
 
+    Point3D[] points;
+
+    Matrix3D rotationXZ;
+    Matrix3D rotationXY;
+    Matrix3D rotationYZ;
+
+    Matrix3D scaleUp;
+    Matrix3D scaleDown;
+
+    Matrix3D moveUp;
+    Matrix3D moveDown;
+    Matrix3D moveRight;
+    Matrix3D moveLeft;
+
+    Point3D viewVector;
+
+    private String currentModel;
 
     public MainWindow() {
 
         initialize();
-        
-        vram = new V_RAM(150, 100);
+
+        vram = new V_RAM(500, 500);
 
         GraphicsOperations.fillBrightness(vram, 255);
 
-        t1 = new Triangle2D(new Point2D(20, 20), new Point2D(50, 20), new Point2D(20, 50));
-        t2 = t1.clone();
+        viewVector = new Point3D(0, 0, 5);
 
+        rotationXZ = Matrix3D.createRotationMatrixXZ(10);
+        rotationXY = Matrix3D.createRotationMatrixXY(10);
+        rotationYZ = Matrix3D.createRotationMatrixYZ(10);
 
+        scaleUp = Matrix3D.createScalingMatrix(1.05);
+        scaleDown = Matrix3D.createScalingMatrix(0.95);
+
+        moveUp = Matrix3D.createTranslationMatrix(0,-10,-10);
+        moveDown = Matrix3D.createTranslationMatrix(0,10,0);
+        moveLeft = Matrix3D.createTranslationMatrix(-10,0,0);
+        moveRight = Matrix3D.createTranslationMatrix(10,0,0);
 
         refresh();
+        setRenderForCube("XY");
+    }
 
+    private void drawCube() {
+        List<Point3D> drawPoints = new ArrayList<>();
+
+        Matrix3D kq = Matrix3D.multiplyMatrix(k,q);
+
+        for (Point3D point : points) {
+            Point3D toDrawPoint = point.applyMatrix(kq);
+            drawPoints.add(toDrawPoint);
+        }
+
+        Triangle3D[] triangles = PointGenerator.generateCubeTriangles(drawPoints.toArray(new Point3D[0]));
+
+        for (Triangle3D triangle : triangles) {
+            triangle.checkVisibility(viewVector);
+
+            if (!triangle.isVisible)
+                GraphicsOperations.drawTriangle3D(vram, triangle,200);
+        }
+
+        for (Triangle3D triangle : triangles) {
+            if (triangle.isVisible)
+                GraphicsOperations.drawTriangle3D(vram, triangle,0);
+        }
+
+        imagePanel.setImage(vram.getImage());
+    }
+
+    private void drawFanTriangles() {
+        List<Point3D> drawPoints = new ArrayList<>();
+
+        Matrix3D kq = Matrix3D.multiplyMatrix(k,q);
+
+        for (int i = 0; i < points.length; i++) {
+            Point3D point = points[i];
+
+            Point3D toDrawPoint = point.applyMatrix(kq);
+            drawPoints.add(toDrawPoint);
+        }
+
+        List<Triangle3D> triangles = Arrays.asList(PointGenerator.generateFanTriangles3D(drawPoints.toArray(new Point3D[0])));
+
+        for (Triangle3D triangle : triangles) {
+            triangle.checkVisibility(viewVector);
+
+            if (!triangle.isVisible)
+                GraphicsOperations.drawTriangle3D(vram, triangle,200);
+        }
+
+        for (Triangle3D triangle : triangles) {
+            if (triangle.isVisible)
+                GraphicsOperations.drawTriangle3D(vram, triangle,0);
+        }
+
+        imagePanel.setImage(vram.getImage());
     }
 
 
@@ -61,60 +141,57 @@ public class MainWindow extends JPanel{
 
         JMenuItem drawBresenhamConfigurationItem = new JMenuItem("Draw Bresenham configuration",
                 KeyEvent.VK_T);
-        drawBresenhamConfigurationItem.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                try {
-                    drawBresenhamConfiguration();
-                }
-
-                catch (InterruptedException interruptedException) {
-                    interruptedException.printStackTrace();
-                }
-            }
-        });
+        drawBresenhamConfigurationItem.addActionListener(e -> drawBresenhamConfiguration());
 
         optionsMenu.add(drawBresenhamConfigurationItem);
 
         JMenuItem drawBresenhamEllipse = new JMenuItem("Draw Bresenham ellipse",
                 KeyEvent.VK_T);
-        drawBresenhamEllipse.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                drawBresenhamEllipse();
-            }
-        });
+        drawBresenhamEllipse.addActionListener(e -> drawBresenhamEllipse());
 
         optionsMenu.add(drawBresenhamEllipse);
 
-        JMenuItem drawAntialiasingLine = new JMenuItem("Test antialiasing line",
-                KeyEvent.VK_T);
-        drawAntialiasingLine.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-
-                vram = new V_RAM(1920,1080);
-                refresh();
-                Line2D line = new Line2D(new Point2D(100,100), new Point2D(1700,1000));
-                GraphicsOperations.drawLine(vram,line,60);
-                imagePanel.setImage(vram.getImage());
-            }
-        });
-
-        optionsMenu.add(drawAntialiasingLine);
-
         JMenuItem clearScreen = new JMenuItem("Clear screen",
                 KeyEvent.VK_T);
-        clearScreen.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                refresh();
-            }
-        });
+        clearScreen.addActionListener(e -> refresh());
 
         optionsMenu.add(clearScreen);
 
+        JMenu renderCube = new JMenu("Render cube");
 
+        JMenuItem renderCubeXY = new JMenuItem("Render cube in XY projection",
+                KeyEvent.VK_T);
+        renderCubeXY.addActionListener(e -> {
+            setRenderForCube("XY");
+        });
+
+        renderCube.add(renderCubeXY);
+
+        JMenuItem renderCubeYZ = new JMenuItem("Render cube in YZ projection",
+                KeyEvent.VK_T);
+        renderCubeYZ.addActionListener(e -> {
+            setRenderForCube("YZ");
+        });
+
+        renderCube.add(renderCubeYZ);
+
+        JMenuItem renderCubeXZ = new JMenuItem("Render cube in XZ projection",
+                KeyEvent.VK_T);
+        renderCubeXZ.addActionListener(e -> {
+            setRenderForCube("XZ");
+        });
+
+        renderCube.add(renderCubeXZ);
+
+        optionsMenu.add(renderCube);
+
+        JMenuItem renderTriangles = new JMenuItem("Render fan triangle",
+                KeyEvent.VK_T);
+        renderTriangles.addActionListener(e -> {
+            setRenderForFanTriangles();
+        });
+
+        optionsMenu.add(renderTriangles);
 
 
         imagePanel = new ImagePanel();
@@ -127,13 +204,7 @@ public class MainWindow extends JPanel{
         button.setBounds(150,10,120,30);
         button.setText("Load Image");
 
-        button.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-
-                openImage();
-            }
-        });
+        button.addActionListener(e -> openImage());
 
         this.add(button);
 
@@ -142,12 +213,7 @@ public class MainWindow extends JPanel{
         JButton button4 = new JButton();
         button4.setBounds(10,10,120,30);
         button4.setText("Save as PNG");
-        button4.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                saveImageAsPNG();
-            }
-        });
+        button4.addActionListener(e -> saveImageAsPNG());
 
         this.add(button4);
 
@@ -186,56 +252,60 @@ public class MainWindow extends JPanel{
 
                 GraphicsOperations.fillBrightness(vram, 255);
 
-                GraphicsOperations.drawTriangle(vram, t1, 128);
-
-                if(infoLabel.getText().equals("Translation")){
-
-                    /*if (key == KeyEvent.VK_LEFT) t2.applyMatrix(Matrix2D.createTranslationMatrix(-1, 0));
-
-                    if (key == KeyEvent.VK_UP) t2.applyMatrix(Matrix2D.createTranslationMatrix(0, -1));
-
-                    if (key == KeyEvent.VK_RIGHT) t2.applyMatrix(Matrix2D.createTranslationMatrix(1, 0));
-
-                    if (key == KeyEvent.VK_DOWN) t2.applyMatrix(Matrix2D.createTranslationMatrix(0, 1));*/
-
-                    /*if (key == KeyEvent.VK_RIGHT) {
-                        l1.pointB.Values[0]++;
-                        refresh();
-                    }
+                if(infoLabel.getText().equals("Rotation")) {
 
                     if (key == KeyEvent.VK_LEFT) {
-                        l1.pointB.Values[0]--;
-                        refresh();
+                        q = Matrix3D.multiplyMatrix(rotationXY, q);
                     }
 
-                    if (key == KeyEvent.VK_DOWN) {
-                        l1.pointB.Values[1]++;
-                        refresh();
+                    if (key == KeyEvent.VK_RIGHT) {
+                        q = Matrix3D.multiplyMatrix(rotationXZ, q);
                     }
 
                     if (key == KeyEvent.VK_UP) {
-                        l1.pointB.Values[1]--;
-                        refresh();
+                        q = Matrix3D.multiplyMatrix(rotationYZ, q);
+                    }
+                }
+
+                if(infoLabel.getText().equals("Scale")) {
+
+                    if (key == KeyEvent.VK_UP) {
+                        q = Matrix3D.multiplyMatrix(scaleUp, q);
+                    }
+
+                    if (key == KeyEvent.VK_DOWN) {
+                        q = Matrix3D.multiplyMatrix(scaleDown, q);
+                    }
+                }
+
+                if(infoLabel.getText().equals("Translation")) {
+
+                    /*if (key == KeyEvent.VK_LEFT) {
+                        q = Matrix3D.multiplyMatrix(moveLeft, q);
+                    }
+
+                    if (key == KeyEvent.VK_RIGHT) {
+                        q = Matrix3D.multiplyMatrix(moveRight, q);
+                    }
+
+                    if (key == KeyEvent.VK_DOWN) {
+                        q = Matrix3D.multiplyMatrix(moveDown, q);
+                    }
+
+                    if (key == KeyEvent.VK_UP) {
+                        q = Matrix3D.multiplyMatrix(moveUp, q);
                     }*/
                 }
 
-                if(infoLabel.getText().equals("Rotation")){
-
-                    if (key == KeyEvent.VK_LEFT || key == KeyEvent.VK_UP) t2.applyMatrix(Matrix2D.createRotationMatrix(-1));
-
-                    if (key == KeyEvent.VK_RIGHT || key == KeyEvent.VK_DOWN) t2.applyMatrix(Matrix2D.createRotationMatrix(1));
+                if (currentModel.equals("Cube")) {
+                    drawCube();
                 }
 
-                if(infoLabel.getText().equals("Scale")){
-
-                    if (key == KeyEvent.VK_LEFT || key == KeyEvent.VK_UP) t2.applyMatrix(Matrix2D.createScalingMatrix(1.05, 1.05));
-
-                    if (key == KeyEvent.VK_RIGHT || key == KeyEvent.VK_DOWN) t2.applyMatrix(Matrix2D.createScalingMatrix(1 / 1.05, 1 / 1.05));
+                if (currentModel.equals("Fan Triangles")) {
+                    drawFanTriangles();
                 }
 
-                //GraphicsOperations.drawTriangle(vram, t2, 50);
-
-                //imagePanel.setImage(vram.getImage());
+                imagePanel.setImage(vram.getImage());
             }
         });
 
@@ -249,11 +319,11 @@ public class MainWindow extends JPanel{
     }
 
     private void drawBresenhamEllipse() {
-        GraphicsOperations.drawEllipse(vram,new Ellipse2D(40,40,50,50),60);
+        GraphicsOperations.drawEllipse(vram,new Ellipse2D(150,150,300,300),60);
         imagePanel.setImage(vram.getImage());
     }
 
-    private void drawBresenhamConfiguration() throws InterruptedException {
+    private void drawBresenhamConfiguration() {
         List<Line2D> linesToBeDrawn = new ArrayList<>();
 
         Collections.addAll(linesToBeDrawn,
@@ -296,7 +366,9 @@ public class MainWindow extends JPanel{
 
                     imagePanel.setImage(temp);
 
-                }else {
+                }
+
+                else {
 
                     JOptionPane.showMessageDialog(null, "Unable to load image", "Open image: ", JOptionPane.ERROR_MESSAGE);
                 }
@@ -332,17 +404,153 @@ public class MainWindow extends JPanel{
         }
     }
 
-    public static void main(String[] args) throws InterruptedException {
+    private void setRenderForCube(String projectionSettings) {
+        refresh();
 
+        points = new Point3D[] {
+                new Point3D(10, 80, 10), //A
+                new Point3D(80, 80, 10), // B
+                new Point3D(80, 10, 10), // F
+                new Point3D(10, 10, 10), // E
+
+                new Point3D(10, 80, 80), //A
+                new Point3D(80, 80, 80), // B
+                new Point3D(80, 10, 80), // F
+                new Point3D(10, 10, 80), // E
+        };
+
+        //points = PointGenerator.generateFanPoints3D(20);
+
+
+        // Process of perspective
+
+
+        double xMin = points[0].vector[0];
+        double xMax = xMin;
+
+        double yMin = points[0].vector[1];
+        double yMax = yMin;
+
+        double zMin = points[0].vector[2];
+        double zMax = zMin;
+
+        for (int i = 1; i < points.length; i++) {
+            Point3D currentPoint = points[i];
+
+            xMin = Math.min(xMin, currentPoint.vector[0]);
+            xMax = Math.max(xMax, currentPoint.vector[0]);
+
+            yMin = Math.min(yMin, currentPoint.vector[1]);
+            yMax = Math.max(yMax, currentPoint.vector[1]);
+
+            zMin = Math.min(zMin, currentPoint.vector[2]);
+            zMax = Math.max(zMax, currentPoint.vector[2]);
+        }
+
+
+        // The transition into normalized space
+        Matrix3D translationToNormalizedSpace = Matrix3D.createTranslationMatrix(
+                -(xMin + xMax) / 2.0,
+                -(yMin + yMax) / 2.0,
+                -(zMin + zMax) / 2.0
+        );
+
+        Matrix3D scaleToNormalizedSpace = Matrix3D.createScalingMatrix(
+                2.0 / Math.max(
+                        Math.max(xMax - xMin, yMax - yMin), zMax - zMin)
+        );
+
+        q = Matrix3D.multiplyMatrix(scaleToNormalizedSpace, translationToNormalizedSpace);
+        Matrix3D scaleToOutput = Matrix3D.createScalingMatrix(Math.min(vram.getWidth(), vram.getHeight()) / 2.0 - 50); // -50 is due to scaling in final window
+        Matrix3D translationToOutput = Matrix3D.createTranslationMatrix(vram.getWidth() / 2.0, vram.getHeight() / 2.0, 0);
+
+        Matrix3D projection = null;
+
+        if (projectionSettings.equals("XY"))
+            projection = Matrix3D.createOrthogonalMatrix();
+
+        if (projectionSettings.equals("YZ"))
+            projection = Matrix3D.createOrthogonalMatrixYZ();
+
+        if (projectionSettings.equals("XZ"))
+            projection = Matrix3D.createOrthogonalMatrixXZ();
+
+        k = Matrix3D.multiplyMatrix(translationToOutput, scaleToOutput);
+        k = Matrix3D.multiplyMatrix(k, projection);
+
+        currentModel = "Cube";
+
+        drawCube();
+    }
+
+    public void setRenderForFanTriangles() {
+
+        points = PointGenerator.generateFanPoints3D(20);
+
+
+        // Process of perspective
+
+
+        double xMin = points[0].vector[0];
+        double xMax = xMin;
+
+        double yMin = points[0].vector[1];
+        double yMax = yMin;
+
+        double zMin = points[0].vector[2];
+        double zMax = zMin;
+
+        for (int i = 1; i < points.length; i++) {
+            Point3D currentPoint = points[i];
+
+            xMin = Math.min(xMin, currentPoint.vector[0]);
+            xMax = Math.max(xMax, currentPoint.vector[0]);
+
+            yMin = Math.min(yMin, currentPoint.vector[1]);
+            yMax = Math.max(yMax, currentPoint.vector[1]);
+
+            zMin = Math.min(zMin, currentPoint.vector[2]);
+            zMax = Math.max(zMax, currentPoint.vector[2]);
+        }
+
+
+        // The transition into normalized space
+        Matrix3D translationToNormalizedSpace = Matrix3D.createTranslationMatrix(
+                -(xMin + xMax) / 2.0,
+                -(yMin + yMax) / 2.0,
+                -(zMin + zMax) / 2.0
+        );
+
+        Matrix3D scaleToNormalizedSpace = Matrix3D.createScalingMatrix(
+                2.0 / Math.max(
+                        Math.max(xMax - xMin, yMax - yMin), zMax - zMin)
+        );
+
+        q = Matrix3D.multiplyMatrix(scaleToNormalizedSpace, translationToNormalizedSpace);
+
+        Matrix3D scaleToOutput = Matrix3D.createScalingMatrix(Math.min(vram.getWidth(), vram.getHeight()) / 2.0);
+        Matrix3D translationToOutput = Matrix3D.createTranslationMatrix(vram.getWidth() / 2.0, vram.getHeight() / 2.0, 0);
+
+        Matrix3D projection = Matrix3D.createOrthogonalMatrix();
+
+        k = Matrix3D.multiplyMatrix(translationToOutput, scaleToOutput);
+        k = Matrix3D.multiplyMatrix(k, projection);
+
+        currentModel = "Fan Triangles";
+
+        drawFanTriangles();
+    }
+
+    public static void main(String[] args) {
         new MainWindow();
     }
 
-    public void drawLine(Line2D lineToBeWritten) throws InterruptedException {
+    public void drawLine(Line2D lineToBeWritten) {
         GraphicsOperations.drawLine(vram,lineToBeWritten,60);
         imagePanel.setImage(vram.getImage());
     }
 
-    public void drawLines(Collection<Line2D> linesToBeDrawn) throws InterruptedException {
+    public void drawLines(Collection<Line2D> linesToBeDrawn) {
         for (Line2D line2D : linesToBeDrawn) {
             drawLine(line2D);
         }

@@ -17,31 +17,65 @@ public class Matrix2D {
         return null;
     }
 
-    public static Matrix2D createTranslationMatrix(double tX, double tY){
+    /**
+     * Creates the translation matrix with given spaces.
+     * @param translationX
+     * @param translationY
+     * @return The {@link Matrix2D}.
+     */
+    public static Matrix2D createTranslationMatrix(double translationX, double translationY) {
 
-        //TODO
+        Matrix2D translationMatrix = new Matrix2D();
 
-        return null;
+        translationMatrix.Values = new double[][]{
+                { 1, 0, translationX },
+                { 0, 1, translationY },
+                { 0, 0, 1            }
+        };
+
+        return translationMatrix;
     }
 
-    public static Matrix2D createRotationMatrix(double angle){
+    public static Matrix2D createRotationMatrix(double angle) {
 
-        //TODO
+        double radianAngle = Math.toRadians(angle);
 
-        return null;
+        Matrix2D rotationMatrix = new Matrix2D();
+
+        rotationMatrix.Values = new double[][]{
+                { Math.cos(radianAngle), -Math.sin(radianAngle), 0 },
+                { Math.sin(radianAngle), Math.cos(radianAngle),  0 },
+                { 0,                     0,                      1 }
+        };
+
+        return rotationMatrix;
     }
 
-    public static Matrix2D createScalingMatrix(double sX, double sY){
+    public static Matrix2D createScalingMatrix(double scalingX, double scalingY) {
 
-        //TODO
+        Matrix2D scalingMatrix = new Matrix2D();
 
-        return null;
+        scalingMatrix.Values = new double[][]{
+                { scalingX, 0,          0 },
+                { 0,        scalingY,   0 },
+                { 0,        0,          1 }
+        };
+
+        return scalingMatrix;
     }
 
     public static Matrix2D multiplyMatrix(Matrix2D m1, Matrix2D m2) {
 
-        //TODO
+        Matrix2D export = new Matrix2D();
 
-        return null;
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                for (int k = 0; k < 3; k++) {
+                    export.Values[i][j] += m1.Values[i][k] * m2.Values[k][j];
+                }
+            }
+        }
+
+        return export;
     }
 }

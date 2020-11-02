@@ -22,7 +22,15 @@ public class Point2D {
 
     public void applyMatrix(Matrix2D matrix) {
 
-        //TODO
+        Point2D export = new Point2D();
+
+        for (int i = 0; i < 3; i++) {
+            export.Values[0] += matrix.Values[0][i] * Values[i];
+            export.Values[1] += matrix.Values[1][i] * Values[i];
+            export.Values[2] += matrix.Values[2][i] * Values[i];
+        }
+
+        Values = export.Values;
     }
 
     public Point2D clone(){
